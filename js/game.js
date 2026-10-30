@@ -1,7 +1,8 @@
 // 斗地主对局状态机（纯逻辑，不依赖 DOM / 网络）
 // 由房主（host）单方面运行，其他人只提交动作、接收视图。
 
-import { makeDeck, shuffle, sortCards, getCombo, canBeat } from './rules.js';
+const V = new URL(import.meta.url).search; // 跟随 index.html 的 ?v= 做缓存穿透
+const { makeDeck, shuffle, sortCards, getCombo, canBeat } = await import('./rules.js' + V);
 
 export const PHASE = { LOBBY: 'lobby', BID: 'bid', PLAY: 'play', OVER: 'over' };
 

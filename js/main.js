@@ -1,8 +1,12 @@
 // 入口：串起大厅、对局和网络
+//
+// 缓存穿透：所有子模块都带上 index.html 里 script 标签的 ?v=xxx，
+// 以后改版只要把 index.html 里的版本号 +1，浏览器就不会继续用旧缓存。
 
-import { Game, PHASE } from './game.js';
-import { HostRoom, GuestRoom, normalizeCode } from './net.js';
-import * as UI from './ui.js';
+const V = new URL(import.meta.url).search;
+const { Game, PHASE } = await import('./game.js' + V);
+const { HostRoom, GuestRoom, normalizeCode } = await import('./net.js' + V);
+const UI = await import('./ui.js' + V);
 
 const $ = (id) => document.getElementById(id);
 

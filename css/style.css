@@ -215,7 +215,7 @@ html, body {
 .btm-label { font-size: 11px; color: var(--dim); letter-spacing: 1px; }
 .bottom-cards { display: flex; gap: 3px; }
 
-/* 对手面板 */
+/* 对手面板：贴左右上方，出牌就显示在各自面板内、靠近自己那一侧 */
 .board {
   flex: 1 1 auto;
   display: flex;
@@ -223,7 +223,7 @@ html, body {
   justify-content: space-between;
   gap: 8px;
   min-height: 0;
-  padding-top: 4px;
+  padding-top: 2px;
 }
 .seat-panel {
   width: 47%;
@@ -255,17 +255,28 @@ html, body {
 .role.landlord { background: linear-gradient(180deg, #ffd885, var(--gold-2)); color: #3a2b06; }
 .role.farmer { background: rgba(120, 200, 160, .22); color: #a8e6c8; }
 .bid-tag { font-size: 10px; color: var(--gold); border: 1px solid rgba(240, 196, 106, .4); border-radius: 6px; padding: 0 5px; }
-.p-play { min-height: 40px; display: flex; align-items: center; }
-.pass-tag { font-size: 13px; color: #ffb4a8; letter-spacing: 2px; }
+.p-play {
+  margin-top: 2px;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+.seat-panel.right .p-play { justify-content: flex-end; }
+.pass-tag { font-size: 15px; color: #ffb4a8; letter-spacing: 3px; font-weight: 600; }
 
-/* 我出的牌 */
+/* 我出的牌：正前方，牌更大，压在牌桌上 */
 .my-play {
   flex: 0 0 auto;
-  min-height: 46px;
+  min-height: 64px;
+  padding: 5px 6px;
   display: flex;
   align-items: center;
   justify-content: center;
+  border-radius: 14px;
+  background: radial-gradient(130% 110% at 50% 45%, rgba(0, 0, 0, .26), rgba(0, 0, 0, 0) 78%);
 }
+.my-play .pass-tag { font-size: 17px; }
 
 /* 手牌区 */
 .myarea {
@@ -325,9 +336,9 @@ html, body {
 .card.joker .r { font-size: calc(var(--cw, 46px) * 0.30); }
 .card.joker .s { font-size: calc(var(--cw, 46px) * 0.30); margin-top: 1px; }
 .card.small {
-  --cw: 26px;
-  width: 26px;
-  height: 36px;
+  --cw: 28px;
+  width: 28px;
+  height: 40px;
   border-radius: 5px;
   padding: 2px 0 0 2px;
 }
@@ -342,9 +353,16 @@ html, body {
 }
 .card.back span { opacity: .7; }
 
-.mini-cards { display: flex; flex-wrap: wrap; align-items: center; row-gap: 3px; }
-.mini-cards .card { margin-left: -10px; }
-.mini-cards .card:first-child { margin-left: 0; }
+/* 出牌展示行：牌宽/重叠由 JS 按容器宽度算好写进 --cw / --step */
+.play-row { display: flex; align-items: center; }
+.play-row .card {
+  width: var(--cw, 32px);
+  height: calc(var(--cw, 32px) * 1.42);
+  margin-left: calc(var(--step, 22px) - var(--cw, 32px));
+}
+.play-row .card:first-child { margin-left: 0; }
+.play-row .card { box-shadow: 0 3px 7px rgba(0, 0, 0, .5); }
+.play-row.me .card { border-color: rgba(0, 0, 0, .35); box-shadow: 0 5px 12px rgba(0, 0, 0, .55); }
 
 /* 操作栏 */
 .actions {

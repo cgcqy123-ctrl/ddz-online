@@ -1,6 +1,7 @@
 // 界面渲染与交互（只负责 DOM，不含规则和网络）
 
-import { findHints, RANK_LABEL } from './rules.js';
+const V = new URL(import.meta.url).search; // 跟随 index.html 的 ?v= 做缓存穿透
+const { findHints, RANK_LABEL } = await import('./rules.js' + V);
 
 const $ = (id) => document.getElementById(id);
 
@@ -49,11 +50,29 @@ function backEl(small = false) {
   return d;
 }
 
-function cardsRow(cards, small = true) {
+/**
+ * 出牌展示行：kind = 'opp'（对手，稍小）| 'me'（自己，更大更靠前）
+ * 尺寸在挂到 DOM 之后用 fitPlayRow 依据容器宽度和牌数算出来，保证一行放得下
+ */
+function playRow(cards, kind) {
   const wrap = document.createElement('div');
-  wrap.className = 'mini-cards' + (small ? '' : ' big');
-  for (const c of cards) wrap.appendChild(cardEl(c, { small }));
+  wrap.className = 'play-row ' + kind;
+  for (const c of cards) wrap.appendChild(cardEl(c));
   return wrap;
+}
+
+function fitPlayRow(row, count, kind) {
+  const vw = Math.min(window.innerWidth || 390, 620);
+  const cw =
+    kind === 'me'
+      ? Math.round(Math.max(36, Math.min(54, vw * 0.12)))
+      : Math.round(Math.max(30, Math.min(42, vw * 0.094)));
+  const box = row.parentElement;
+  const measured = box ? box.clientWidth : 0;
+  const avail = Math.max(cw, measured ? measured - 10 : kind === 'me' ? vw - 24 : vw * 0.44);
+  const step = count > 1 ? Math.min(cw - 4, Math.max(10, (avail - cw) / (count - 1))) : cw;
+  row.style.setProperty('--cw', cw + 'px');
+  row.style.setProperty('--step', step + 'px');
 }
 
 /* ---------- 房间大厅 ---------- */
@@ -119,12 +138,17 @@ export function renderTable(view, actionCb) {
   renderSeatPanel($('seat-right'), view, rightSeat);
   renderSeatPanel($('seat-left'), view, leftSeat);
 
-  // 我的最近一手
+  // 我的最近一手（正前方，牌更大）
   const myPlay = $('my-play');
   myPlay.innerHTML = '';
   const rec = view.recent[selfSeat];
-  if (rec && rec.kind === 'play') myPlay.appendChild(cardsRow(rec.cards, true));
-  else if (rec && rec.kind === 'pass') myPlay.innerHTML = '<span class="pass-tag">不出</span>';
+  if (rec && rec.kind === 'play') {
+    const row = playRow(rec.cards, 'me');
+    myPlay.appendChild(row);
+    fitPlayRow(row, rec.cards.length, 'me');
+  } else if (rec && rec.kind === 'pass') {
+    myPlay.innerHTML = '<span class="pass-tag">不出</span>';
+  }
 
   // 自己的信息栏
   const mine = view.seats[selfSeat];
@@ -181,9 +205,14 @@ function renderSeatPanel(root, view, seat) {
 
   const zone = document.createElement('div');
   zone.className = 'p-play';
-  if (rec && rec.kind === 'play') zone.appendChild(cardsRow(rec.cards, true));
-  else if (rec && rec.kind === 'pass') zone.innerHTML = '<span class="pass-tag">不出</span>';
   root.appendChild(zone);
+  if (rec && rec.kind === 'play') {
+    const row = playRow(rec.cards, 'opp');
+    zone.appendChild(row);
+    fitPlayRow(row, rec.cards.length, 'opp');
+  } else if (rec && rec.kind === 'pass') {
+    zone.innerHTML = '<span class="pass-tag">不出</span>';
+  }
 }
 
 function renderHand(view) {

@@ -111,6 +111,32 @@ ok(document.getElementById('t-base').textContent === '3', '底分显示');
 ok(document.querySelectorAll('#t-bottom .card').length === 3, '底牌 3 张');
 ok(document.querySelectorAll('#seat-left .p-head, #seat-right .p-head').length === 2, '两个对手面板');
 
+/* --- 出牌区：自己出牌显示在正前方（牌更大），对手出牌显示在他的面板里 --- */
+const g3 = new Game([{ name: 'A' }, { name: 'B' }, { name: 'C' }]);
+g3.startRound();
+g3.action(g3.turn, { type: 'bid', value: 3 });
+const lord3 = g3.landlord;
+const small3 = g3.seats[lord3].hand[g3.seats[lord3].hand.length - 1];
+g3.action(lord3, { type: 'play', cards: [small3.id] });
+
+const v3 = g3.view(lord3);
+v3._code = 'T1';
+v3._isHost = true;
+UI.renderTable(v3, () => {});
+const myRow = document.querySelector('#my-play .play-row.me');
+ok(!!myRow, '自己的出牌应渲染在正前方');
+ok(myRow && myRow.style.getPropertyValue('--cw'), '正前方出牌行应有尺寸变量');
+ok(myRow && myRow.querySelectorAll('.card').length === 1, '正前方出牌张数正确');
+
+const v4 = g3.view((lord3 + 1) % 3);
+v4._code = 'T1';
+v4._isHost = false;
+UI.renderTable(v4, () => {});
+const oppRow = document.querySelector('#seat-left .play-row.opp, #seat-right .play-row.opp');
+ok(!!oppRow, '对手的出牌应渲染在他自己的面板里');
+ok(oppRow && oppRow.style.getPropertyValue('--cw'), '对手出牌行应有尺寸变量');
+ok(document.querySelectorAll('#my-play .play-row').length === 0, '这手不是自己出的，正前方应为空');
+
 if (problems.length) {
   console.error('❌ UI 冒烟测试失败：\n - ' + problems.join('\n - '));
   process.exit(1);
