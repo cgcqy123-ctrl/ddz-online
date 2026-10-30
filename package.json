@@ -1,0 +1,11 @@
+{
+  "name": "ddz-online",
+  "private": true,
+  "type": "module",
+  "version": "1.0.0",
+  "description": "GitHub Pages 可用的联机斗地主（PeerJS P2P，纯静态）",
+  "scripts": {
+    "test": "node test/rules.test.mjs && node test/game.test.mjs",
+    "serve": "node tools/serve.mjs"
+  }
+}
