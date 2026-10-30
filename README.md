@@ -183,9 +183,13 @@ python -m http.server 8080    # 或者 npx serve .
 │   ├── ui.js               # 渲染与交互
 │   ├── main.js             # 入口：大厅、对局、网络串联
 │   └── vendor/peerjs.min.js# PeerJS 1.5.5 浏览器版（已内置，不依赖 CDN）
-├── test/                   # node 单元测试（规则 + 状态机）
+├── test/
+│   ├── rules.test.mjs      # 牌型 / 大小比较 / 提示（纯逻辑，无依赖）
+│   ├── game.test.mjs       # 发牌、叫分、出牌、倍数、结算（含 200 局随机对局）
+│   ├── ui-smoke.mjs        # jsdom：点按钮打完整局，检查渲染与交互
+│   └── e2e-smoke.mjs       # jsdom + 假 Peer：建房/入座/开局/重连全流程
 ├── tools/serve.mjs         # 本地静态服务器
-└── .github/workflows/pages.yml  # 推送即部署到 GitHub Pages
+└── .github/workflows/pages.yml  # 推送 → 跑测试 → 部署 GitHub Pages
 ```
 
 ---
@@ -193,12 +197,18 @@ python -m http.server 8080    # 或者 npx serve .
 ## 开发与测试
 
 ```bash
-npm run test     # 规则与状态机单元测试（含 200 局随机对局校验）
-npm run serve    # 本地起服务，http://localhost:8080
+npm install        # 只有 UI / 端到端测试需要 jsdom，纯逻辑测试零依赖
+npm run test       # 规则 + 状态机单元测试（含 200 局随机对局校验）
+npm run test:ui    # jsdom 里点按钮打完整局
+npm run test:e2e   # jsdom + 假 PeerJS 跑完整联机流程
+npm run test:all   # 上面三个一起跑（CI 跑的就是这个）
+npm run serve      # 本地起服务，http://localhost:8080
 ```
 
 `js/rules.js` 和 `js/game.js` 不碰 DOM、不碰网络，可以单独跑；
 `js/ui.js` 只碰 DOM；`js/net.js` 只碰 PeerJS。想改规则改前两个文件即可。
+
+CI：每次 push 到 `main` 会自动 `npm ci && npm run test:all`，测试通过才发布，所以改坏了不会上线。
 
 ---
 

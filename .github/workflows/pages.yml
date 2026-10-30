@@ -20,11 +20,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Run unit tests
-        run: |
-          node --version
-          node test/rules.test.mjs
-          node test/game.test.mjs
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dev dependencies
+        run: npm ci
+
+      - name: Test (rules / state machine / UI / end-to-end)
+        run: npm run test:all
 
       - name: Prepare static site
         run: |
