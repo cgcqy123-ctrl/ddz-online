@@ -86,16 +86,21 @@ export function renderLobby({ code, seats, isHost, canStart, tip }) {
     const li = document.createElement('li');
     li.className = 'seat-item' + (s.name ? ' filled' : '');
     const role = i === 0 ? '房主' : '玩家 ' + (i + 1);
+    const off = s.name && s.connected === false ? ' · 离线' : '';
     li.innerHTML = `
       <span class="idx">${i + 1}</span>
       <span class="nm">${s.name ? escapeHtml(s.name) : '空位'}</span>
-      <span class="tag">${role}</span>`;
+      <span class="tag">${role}${off}</span>`;
     ul.appendChild(li);
   });
+  const filled = seats.filter((s) => s.name).length;
+  // 房主和客人都能看到「现在几个人」：客人没有开始按钮，必须单独给一行人数
+  const countEl = $('lobby-count');
+  if (countEl) countEl.textContent = `已入座 ${filled}/3${filled === 3 ? ' · 人齐了' : ''}`;
   const btn = $('btn-start');
   btn.classList.toggle('hidden', !isHost);
   btn.disabled = !canStart;
-  btn.textContent = canStart ? '开始游戏' : `等待玩家入座 (${seats.filter((s) => s.name).length}/3)`;
+  btn.textContent = canStart ? '开始游戏' : `等待玩家入座 (${filled}/3)`;
   $('lobby-tip').textContent = tip || (isHost ? '把房号发给朋友，满 3 人后点「开始游戏」' : '等待房主开始游戏…');
 }
 

@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#0a2e22" />
 <title>斗地主 · 联机版</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🃏</text></svg>" />
-<link rel="stylesheet" href="css/style.css?v=2" />
+<link rel="stylesheet" href="css/style.css?v=3" />
 </head>
 <body>
 <div id="app">
@@ -40,6 +40,7 @@
     <div class="lobby">
       <div class="code-badge">房号 <b id="lobby-code">----</b></div>
       <ul class="seat-list" id="seat-list"></ul>
+      <p class="seat-count" id="lobby-count"></p>
       <button class="btn primary block" id="btn-start" disabled>开始游戏</button>
       <p class="tip" id="lobby-tip"></p>
       <button class="btn ghost block" id="btn-leave">离开房间</button>
@@ -83,6 +84,6 @@
 <div class="toast" id="toast"></div>
 
 <script src="js/vendor/peerjs.min.js"></script>
-<script type="module" src="js/main.js?v=2"></script>
+<script type="module" src="js/main.js?v=3"></script>
 </body>
 </html>

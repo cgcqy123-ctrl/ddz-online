@@ -10,6 +10,16 @@ const UI = await import('./ui.js' + V);
 
 const $ = (id) => document.getElementById(id);
 
+/** Safari 隐私模式 / 关闭 Cookie 时 localStorage 会直接抛异常，必须兜底，否则整个页面启动失败 */
+const store = {
+  get(key) {
+    try { return localStorage.getItem(key) || ''; } catch (_) { return ''; }
+  },
+  set(key, value) {
+    try { localStorage.setItem(key, value); } catch (_) { /* Safari 隐私模式等，忽略即可 */ }
+  },
+};
+
 const S = {
   name: '',
   role: null, // 'host' | 'guest'
@@ -31,7 +41,7 @@ function getName() {
     $('in-name').focus();
     return '';
   }
-  localStorage.setItem('ddz-name', v);
+  store.set('ddz-name', v);
   return v;
 }
 
@@ -86,13 +96,25 @@ async function createRoom() {
   }
 }
 
-function hostOnHello(conn, name) {
+function hostOnHello(conn, name, existingSeat) {
   const seats = S.lobbySeats;
   if (!seats) {
     S.host.sendRaw(conn, { t: 'full' });
     return;
   }
   const clean = (name || '').trim().slice(0, 8) || '玩家';
+
+  // 加入方重发的 hello（Safari 丢第一条消息时）：连接已绑座位，直接幂等补发入座信息
+  if (existingSeat !== undefined && existingSeat !== null) {
+    S.host.send(existingSeat, { t: 'joined', seat: existingSeat, code: S.code });
+    if (S.game && S.game.phase !== PHASE.LOBBY) {
+      S.host.send(existingSeat, { t: 'state', view: S.game.view(existingSeat) });
+    } else {
+      renderLobby();
+    }
+    return;
+  }
+
   // 断线重连：同名且标记为离线的座位可以收回
   let seat = seats.findIndex((s, i) => i > 0 && s.name === clean && !s.connected);
   if (seat < 0) seat = seats.findIndex((s, i) => i > 0 && !s.name);
@@ -170,6 +192,17 @@ function startGame() {
   startRound();
 }
 
+/** 把大厅座位同步给所有已入座的客人：谁进来了、谁掉线了、现在几个人 */
+function broadcastLobby() {
+  if (S.role !== 'host' || !S.host || !S.lobbySeats) return;
+  const seats = S.lobbySeats.map((s) => ({ name: s.name, connected: s.connected }));
+  for (let i = 1; i < 3; i++) {
+    if (S.lobbySeats[i].name && S.lobbySeats[i].connected) {
+      S.host.send(i, { t: 'lobby', code: S.code, seats });
+    }
+  }
+}
+
 function renderLobby() {
   if (S.role !== 'host') return;
   const filled = S.lobbySeats.filter((s) => s.name).length;
@@ -180,6 +213,7 @@ function renderLobby() {
     canStart: filled === 3 && S.lobbySeats.every((s) => s.connected),
     tip: filled < 3 ? `把房号 ${S.code} 发给朋友，满 3 人即可开始` : '人齐了，点「开始游戏」',
   });
+  broadcastLobby();
 }
 
 function pushStates() {
@@ -233,10 +267,10 @@ async function joinRoom() {
     await g.join(code, name);
     UI.renderLobby({
       code,
-      seats: [{ name: '房主' }, { name: '' }, { name: '' }],
+      seats: [{ name: '' }, { name: '' }, { name: '' }],
       isHost: false,
       canStart: false,
-      tip: '正在进入房间…',
+      tip: '已连上房主，正在入座…',
     });
   } catch (e) {
     UI.toast(e && e.message ? e.message : '加入失败');
@@ -290,7 +324,7 @@ function guestActionLocal(act) {
 /* ---------- 绑定事件 ---------- */
 
 function boot() {
-  $('in-name').value = localStorage.getItem('ddz-name') || '';
+  $('in-name').value = store.get('ddz-name');
   $('btn-create').addEventListener('click', createRoom);
   $('btn-join').addEventListener('click', joinRoom);
   $('btn-start').addEventListener('click', startGame);

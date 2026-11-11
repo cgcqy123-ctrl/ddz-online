@@ -38,6 +38,20 @@ UI.renderLobby({
 ok(document.getElementById('lobby-code').textContent === 'AB12', '房号显示正确');
 ok(document.querySelectorAll('#seat-list li').length === 3, '座位列表 3 项');
 ok(document.getElementById('btn-start').disabled === true, '人不满时开始按钮禁用');
+ok(/已入座 2\/3/.test(document.getElementById('lobby-count').textContent), '大厅显示人数 2/3');
+ok(document.querySelector('#seat-list .nm').textContent === '甲', '大厅能看到房主名字');
+
+// 客人视角：没有开始按钮，但必须能看到人数和所有人名字
+UI.renderLobby({
+  code: 'AB12',
+  seats: [{ name: '甲' }, { name: '乙' }, { name: '丙' }],
+  isHost: false,
+  canStart: false,
+  tip: '',
+});
+ok(/已入座 3\/3/.test(document.getElementById('lobby-count').textContent), '客人也能看到人数 3/3');
+ok(document.getElementById('btn-start').classList.contains('hidden'), '客人看不到开始按钮');
+ok(document.querySelectorAll('#seat-list .seat-item.filled').length === 3, '客人能看到 3 个已入座玩家');
 
 /* --- 牌桌：整局模拟 --- */
 let pending = null;

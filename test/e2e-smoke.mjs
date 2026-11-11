@@ -88,6 +88,15 @@ global.Peer = FakePeer;
 dom.window.Peer = FakePeer;
 
 const tick = (ms = 0) => new Promise((r) => setTimeout(r, ms));
+/** 轮询等待条件成立（跨网络/重试类断言不要用固定 tick） */
+async function waitFor(fn, timeout = 4000, step = 20) {
+  const start = Date.now();
+  while (Date.now() - start < timeout) {
+    if (fn()) return true;
+    await tick(step);
+  }
+  return false;
+}
 const PROBLEMS = [];
 const ok = (c, m) => { if (!c) PROBLEMS.push(m); };
 const $ = (id) => document.getElementById(id);
@@ -118,11 +127,12 @@ ok($('btn-start').disabled, '1 人时不能开始');
 function joinAs(name) {
   const peer = new FakePeer();
   const conn = peer.connect(hostId);
-  const box = { name, peer, conn, seat: null, states: 0, toasts: [] };
+  const box = { name, peer, conn, seat: null, states: 0, toasts: [], lobbys: [] };
   conn.on('data', (msg) => {
     if (msg.t === 'joined') box.seat = msg.seat;
     else if (msg.t === 'state') { box.states++; autoAct(box, msg.view); }
     else if (msg.t === 'toast') box.toasts.push(msg.msg);
+    else if (msg.t === 'lobby') box.lobbys.push(msg);
   });
   conn.on('open', () => conn.send({ t: 'hello', name }));
   return box;
@@ -150,14 +160,37 @@ function autoAct(box, view) {
 }
 
 const g1 = joinAs('乙');
+await waitFor(() => g1.seat === 1);
 await tick(40);
+
+// 大厅同步回归：第一位客人应该立刻能收到「房主 + 自己」的座位列表
+const g1Lobby1 = g1.lobbys[g1.lobbys.length - 1];
+ok(!!g1Lobby1, '客人收到大厅座位同步');
+ok(g1Lobby1 && g1Lobby1.seats[0] && g1Lobby1.seats[0].name === '甲', '客人能看到房主名字');
+ok(g1Lobby1 && g1Lobby1.seats[1] && g1Lobby1.seats[1].name === '乙', '客人能看到自己的座位');
+
 const g2 = joinAs('丙');
-await tick(40);
+await waitFor(() => g2.seat === 2);
+await tick(60);
 
 ok(g1.seat === 1, '乙 应该坐 1 号位，实际 ' + g1.seat);
 ok(g2.seat === 2, '丙 应该坐 2 号位，实际 ' + g2.seat);
 ok($('btn-start').disabled === false, '3 人齐后可以开始');
 ok(document.querySelectorAll('#seat-list .seat-item.filled').length === 3, '大厅显示 3 个座位');
+ok(/已入座 3\/3/.test($('lobby-count').textContent), '房主看到人数 3/3，实际：' + $('lobby-count').textContent);
+
+// 第二位客人入座后，第一位客人也要收到更新后的 3 人座位表
+const g1Lobby2 = g1.lobbys[g1.lobbys.length - 1];
+ok(g1Lobby2 && g1Lobby2.seats.filter((s) => s.name).length === 3, '第一位客人能看到 3 人已入座');
+const g2Lobby = g2.lobbys[g2.lobbys.length - 1];
+ok(g2Lobby && g2Lobby.seats[0].name === '甲' && g2Lobby.seats[2].name === '丙', '第二位客人能看到房主和全部座位');
+
+// 重复 hello 幂等：Safari 补发 hello 时不能抢到别人座位，还要补发大厅
+const lobbysBefore = g2.lobbys.length;
+g2.conn.send({ t: 'hello', name: '丙' });
+await tick(80);
+ok(g2.seat === 2, '重复 hello 不会改变座位');
+ok(g2.lobbys.length > lobbysBefore, '重复 hello 会补发大厅座位表');
 
 /* ---------------- 开局并打完一局 ---------------- */
 $('btn-start').click();
@@ -210,6 +243,26 @@ extraConn.on('data', (m) => { extraGot = m; });
 extraConn.on('open', () => extraConn.send({ t: 'hello', name: '丁' }));
 await tick(80);
 ok(extraGot && extraGot.t === 'full', '第 4 个人应该被拒绝');
+
+/* ---------------- Safari 握手重试（直接测 GuestRoom） ---------------- */
+const { GuestRoom } = await import(url('js/net.js'));
+const dropHost = new FakePeer('ddzcard-test');
+let helloSeen = 0;
+dropHost.on('connection', (conn) => {
+  conn.on('data', (msg) => {
+    if (msg.t === 'hello') {
+      helloSeen++;
+      if (helloSeen === 1) return; // 模拟 Safari 吞掉第一条 hello
+      conn.send({ t: 'joined', seat: 1, code: 'TEST' });
+    }
+  });
+});
+const received = [];
+const gr = new GuestRoom({ onMessage: (m) => received.push(m) });
+await gr.join('TEST', '小八');
+ok(await waitFor(() => received.some((m) => m.t === 'joined'), 4000), 'GuestRoom 在首条 hello 丢失后会自动重发并完成握手');
+ok(helloSeen >= 2, '房主实际收到了重发的 hello，实际次数 ' + helloSeen);
+gr.close();
 
 if (PROBLEMS.length) {
   console.error('❌ 端到端测试失败：\n - ' + PROBLEMS.join('\n - '));
